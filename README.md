@@ -25,6 +25,7 @@
 - Hive
 
 ### Links for data
+- [All dumps](https://dumps.wikimedia.org/)
 - [All Analytics](https://dumps.wikimedia.org/other/analytics/)
 - [Pageviews Filtered to Human Traffic](https://dumps.wikimedia.org/other/pageviews/readme.html)
   - https://wikitech.wikimedia.org/wiki/Analytics/Data_Lake/Traffic/Pageviews
