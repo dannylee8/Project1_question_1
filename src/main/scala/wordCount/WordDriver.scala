@@ -2,10 +2,10 @@ package wordCount
 
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.Path
-import org.apache.hadoop.io.{IntWritable, Text}
+import org.apache.hadoop.io.{IntWritable, Text, Writable}
 import org.apache.hadoop.mapreduce.Job
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
+import org.apache.hadoop.mapreduce.lib.input.{FileInputFormat, SequenceFileInputFormat}
+import org.apache.hadoop.mapreduce.lib.output.{FileOutputFormat, SequenceFileOutputFormat}
 
 /**
  * WordDriver is the eentry point for our MapReduce job.
@@ -17,37 +17,42 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
  * */
 object WordDriver extends App {
 
-  if (args.length != 2) {
-    println("Usage: WordDriver <input dir> <output dir>")
+  if (args.length != 3) {
+    println("Usage: WordDriver <input dir> <inter dir> <output dir>")
     System.exit(-1)
   }
+
   val conf : Configuration = new Configuration();
-  // instantiating a Job object we can configure
-  val job = Job.getInstance(conf, "word count")
 
-  // Set the jar file that contains driver, mapper, and reducer.
-  // This jar file will be transferred to nodes that run tasks.
-  job.setJarByClass(WordDriver.getClass)
+  val job1 = Job.getInstance(conf, "word count")
+  job1.setJarByClass(WordDriver.getClass)
+  job1.setMapperClass(classOf[WordMapper])
+//  job1.setCombinerClass(classOf[WordReducer])
+  job1.setReducerClass(classOf[WordReducer])
+  job1.setOutputKeyClass(classOf[Text])
+  job1.setOutputValueClass(classOf[IntWritable])
+  job1.setOutputFormatClass(classOf[SequenceFileOutputFormat[Writable, Writable]])
 
-  job.setJobName("Word Count")
+  FileInputFormat.addInputPath(job1, new Path(args(0)))
+  FileOutputFormat.setOutputPath(job1, new Path(args(1)))
 
-  // Specify input and output paths based on the command line arts
-  // this line sets the input to be from files specified in the first arg received
-  FileInputFormat.addInputPath(job, new Path(args(0)))
+  if (!job1.waitForCompletion(true)) {
+    System.exit(1)
+  }
 
-  // this line sets output path based on the second arg
-  FileOutputFormat.setOutputPath(job, new Path(args(1)))
+  val job2 = Job.getInstance(conf, "sort by frequency")
+  job2.setJarByClass(WordDriver.getClass)
+  job2.setMapperClass(classOf[KeyValueSwappingMapper])
+//  job2.setNumReduceTasks(1)
+//  job2.setSortComparatorClass(classOf[IntWritable.DecreasingComparator])
+  job2.setOutputKeyClass(classOf[IntWritable])
+  job2.setOutputValueClass(classOf[Text])
+  job2.setInputFormatClass(classOf[SequenceFileInputFormat[Writable, Writable]])
 
-  job.setMapperClass(classOf[WordMapper])
-  println("Mapper class ", classOf[WordMapper])
-  job.setReducerClass(classOf[WordReducer])
-  println("Reducer class ", classOf[WordReducer])
+  FileInputFormat.addInputPath(job2, new Path(args(1)))
+  FileOutputFormat.setOutputPath(job2, new Path(args(2)))
 
-  // Specify the job's output key and value classes.  We're making use of some defaults to
-  // not have to specify input and intermediate
-  job.setOutputKeyClass(classOf[Text])
-  job.setOutputValueClass(classOf[IntWritable])
-
-  val success = job.waitForCompletion(true)
-  System.exit(if (success) {0} else {1})
+  if (!job2.waitForCompletion(true)) {
+    System.exit(1)
+  }
 }
